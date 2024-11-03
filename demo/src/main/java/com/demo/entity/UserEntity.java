@@ -12,14 +12,13 @@ import lombok.Setter;
 @Getter
 public class UserEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    @Id // 기본 키 필드
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // ID 자동 생성 전략 설정
+    private int id; // 사용자 ID
 
-    private String username;
+    private String username; // 사용자 이름
 
-    private String password;
+    private String password; // 비밀번호
 
-    private String role;
-
+    private String role; // 사용자 역할
 }

@@ -22,82 +22,75 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import java.util.Collections;
 
 
-@Configuration
-@EnableWebSecurity
+@Configuration // 이 클래스가 Spring 설정 클래스임을 나타냄
+@EnableWebSecurity // Spring Security를 활성화함
 public class SecurityConfig {
 
-    private final AuthenticationConfiguration authenticationConfiguration;
-    //JWTUtil 주입
-    private final JWTUtil jwtUtil;
+    private final AuthenticationConfiguration authenticationConfiguration; // 인증 구성을 위한 인스턴스
+    private final JWTUtil jwtUtil; // JWT 유틸리티 클래스의 인스턴스
 
+    // 생성자를 통해 의존성 주입
     public SecurityConfig(AuthenticationConfiguration authenticationConfiguration, JWTUtil jwtUtil) {
-
         this.authenticationConfiguration = authenticationConfiguration;
         this.jwtUtil = jwtUtil;
     }
 
+    // AuthenticationManager 빈 정의
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
-
-        return configuration.getAuthenticationManager();
+        return configuration.getAuthenticationManager(); // 인증 관리자 반환
     }
 
+    // BCryptPasswordEncoder 빈 정의
     @Bean
     public BCryptPasswordEncoder bCryptPasswordEncoder() {
-
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(); // 비밀번호 인코더 반환
     }
 
+    // 보안 필터 체인 설정
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        // CORS 설정
+        http.cors((corsCustomizer -> corsCustomizer.configurationSource(new CorsConfigurationSource() {
+            @Override
+            public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
+                CorsConfiguration configuration = new CorsConfiguration();
+                configuration.setAllowedOrigins(Collections.singletonList("http://localhost:3000")); // 허용할 출처
+                configuration.setAllowedMethods(Collections.singletonList("*")); // 허용할 HTTP 메서드
+                configuration.setAllowCredentials(true); // 자격 증명 허용
+                configuration.setAllowedHeaders(Collections.singletonList("*")); // 허용할 헤더
+                configuration.setMaxAge(3600L); // 최대 캐시 시간
+                configuration.setExposedHeaders(Collections.singletonList("Authorization")); // 노출할 헤더
 
-        http
-                .cors((corsCustomizer -> corsCustomizer.configurationSource(new CorsConfigurationSource() {
+                return configuration; // 설정 반환
+            }
+        })));
 
-                    @Override
-                    public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
+        // CSRF 비활성화
+        http.csrf((auth) -> auth.disable());
 
-                        CorsConfiguration configuration = new CorsConfiguration();
+        // 폼 로그인 비활성화
+        http.formLogin((auth) -> auth.disable());
 
-                        configuration.setAllowedOrigins(Collections.singletonList("http://localhost:3000"));
-                        configuration.setAllowedMethods(Collections.singletonList("*"));
-                        configuration.setAllowCredentials(true);
-                        configuration.setAllowedHeaders(Collections.singletonList("*"));
-                        configuration.setMaxAge(3600L);
+        // 기본 인증 비활성화
+        http.httpBasic((auth) -> auth.disable());
 
-                        configuration.setExposedHeaders(Collections.singletonList("Authorization"));
+        // 요청에 대한 권한 설정
+        http.authorizeHttpRequests((auth) -> auth
+                .requestMatchers("/login", "/", "/join").permitAll() // 로그인, 루트, 가입 경로 허용
+                .requestMatchers("/admin").hasRole("ADMIN") // 관리자 경로는 ADMIN 역할만 접근 가능
+                .anyRequest().authenticated()); // 그 외의 요청은 인증 필요
 
-                        return configuration;
-                    }
-                })));
+        // JWTFilter 등록
+        http.addFilterBefore(new JWTFilter(jwtUtil), LoginFilter.class);
 
+        // LoginFilter 등록
+        http.addFilterAt(new LoginFilter(authenticationManager(authenticationConfiguration), jwtUtil), UsernamePasswordAuthenticationFilter.class);
 
-        http
-                .csrf((auth) -> auth.disable());
+        // 세션 관리 설정
+        http.sessionManagement((session) -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)); // 상태 비저장 세션 정책 설정
 
-        http
-                .formLogin((auth) -> auth.disable());
-
-        http
-                .httpBasic((auth) -> auth.disable());
-        http
-                .authorizeHttpRequests((auth) -> auth
-                        .requestMatchers("/login", "/", "/join").permitAll()
-                        .requestMatchers("/admin").hasRole("ADMIN")
-                        .anyRequest().authenticated());
-
-        //JWTFilter 등록
-        http
-                .addFilterBefore(new JWTFilter(jwtUtil), LoginFilter.class);
-
-        //AuthenticationManager()와 JWTUtil 인수 전달
-        http
-                .addFilterAt(new LoginFilter(authenticationManager(authenticationConfiguration), jwtUtil), UsernamePasswordAuthenticationFilter.class);
-
-        http
-                .sessionManagement((session) -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-
-        return http.build();
+        return http.build(); // 설정된 보안 필터 체인 반환
     }
 }

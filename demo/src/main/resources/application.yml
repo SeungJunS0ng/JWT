@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: SpringJWT
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/jwt?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  jpa:
+    hibernate:
+      ddl-auto: none # Hibernate? DDL ?? ?? ??
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl # ??? ?? ?? ??
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect # MySQL Dialect ??
+  jwt:
+    secret: vmfhaltmskdlstkfkdgodyroqkfwkdbalroqkfwkdbalaaaaaaaaaaaaaaaabbbbb

@@ -28,11 +28,15 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	compileOnly 'org.projectlombok:lombok'
-	runtimeOnly 'com.mysql:mysql-connector-j'
+	runtimeOnly 'com.mysql:mysql-connector-j'  // MySQL JDBC 드라이버
 
-	implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
-	implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
-	implementation 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+	// Jakarta Servlet API 의존성 (Spring Boot 3.x 이후 변경된 패키지)
+	implementation 'jakarta.servlet:jakarta.servlet-api:5.0.0'
+
+	// JWT 관련 의존성
+	implementation 'io.jsonwebtoken:jjwt-api:0.11.0'
+	implementation 'io.jsonwebtoken:jjwt-impl:0.11.0'
+	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.0'
 
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'

@@ -1,42 +1,27 @@
 package com.demo.service;
 
 import com.demo.dto.JoinDTO;
-import com.demo.entity.UserEntity;
 import com.demo.repository.UserRepository;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class JoinService {
 
-    private final UserRepository userRepository; // 사용자 리포지토리 인스턴스
-    private final BCryptPasswordEncoder bCryptPasswordEncoder; // 비밀번호 인코더 인스턴스
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    // 생성자를 통해 UserRepository와 BCryptPasswordEncoder 주입
-    public JoinService(UserRepository userRepository, BCryptPasswordEncoder bCryptPasswordEncoder) {
-        this.userRepository = userRepository; // 인스턴스 변수 초기화
-        this.bCryptPasswordEncoder = bCryptPasswordEncoder; // 인스턴스 변수 초기화
+    public JoinService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
-    // 가입 처리 메서드
     public void joinProcess(JoinDTO joinDTO) {
-        String username = joinDTO.getUsername(); // 사용자 이름 가져오기
-        String password = joinDTO.getPassword(); // 비밀번호 가져오기
-
-        // 사용자 이름 존재 여부 확인
-        Boolean isExist = userRepository.existsByUsername(username);
-
-        if (isExist) {
-            return; // 이미 존재하면 메서드 종료
+        if (userRepository.existsByUsername(joinDTO.getUsername())) {
+            throw new IllegalStateException("Username already exists");
         }
 
-        // 새로운 사용자 엔티티 생성
-        UserEntity data = new UserEntity();
-        data.setUsername(username); // 사용자 이름 설정
-        data.setPassword(bCryptPasswordEncoder.encode(password)); // 비밀번호 암호화 후 설정
-        data.setRole("ROLE_ADMIN"); // 기본 역할 설정
-
-        // 사용자 엔티티 저장
-        userRepository.save(data);
+        // JoinDTO에서 toEntity 메서드를 호출하여 UserEntity로 변환 후 저장
+        userRepository.save(joinDTO.toEntity(passwordEncoder));
     }
 }

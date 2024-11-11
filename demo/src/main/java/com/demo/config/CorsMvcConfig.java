@@ -13,6 +13,6 @@ public class CorsMvcConfig implements WebMvcConfigurer {
         // 모든 경로에 대해 CORS 허용 설정
         corsRegistry.addMapping("/**")
                 // 허용할 출처를 지정
-                .allowedOrigins("http://localhost:3000");
+                .allowedOrigins("http://localhost:3000"); // 프론트 연동할 떄 백엔드로 자원요청? cors 프론트 -> 백엔드
     }
 }

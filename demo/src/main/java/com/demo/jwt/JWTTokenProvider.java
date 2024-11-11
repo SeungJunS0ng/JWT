@@ -28,6 +28,7 @@ public class JWTTokenProvider {
                 .compact();
     }
 
+    // JWT 토큰에서 사용자 이름을 추출, 이를 위해 JWT를 파싱하고, **subject**를 반환
     public String getUsernameFromToken(String token) {
         Claims claims = getClaims(token);
         return claims.getSubject();
@@ -41,6 +42,7 @@ public class JWTTokenProvider {
                 .getBody();
     }
 
+    // JWT의 유효성을 검사
     public boolean validateToken(String token) {
         try {
             Claims claims = getClaims(token);

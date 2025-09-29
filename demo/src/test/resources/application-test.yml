@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driverClassName: org.h2.Driver
+    username: sa
+    password: password
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.H2Dialect
+
+  h2:
+    console:
+      enabled: true
+
+  jwt:
+    secret: mySecretKeyForTestingPurposesOnlyThisIsAVeryLongSecretKey
+    expirationTime: 3600000  # 1 hour
+    refreshTokenExpirationTime: 604800000  # 7 days
+
+logging:
+  level:
+    com.jwtauth: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN

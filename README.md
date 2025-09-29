@@ -1,253 +1,280 @@
+> 운영 환경에서 사용하기 전에 보안 검토를 수행하시기 바랍니다.
 # JWT Authentication System
 
-Spring Boot 기반의 완전한 JWT 인증 시스템입니다. 사용자 인증, 권한 관리, 토큰 관리 기능을 제공합니다.
+> Spring Boot 3.3.5 기반 완전한 JWT 인증 시스템
+
+## 프로젝트 개요
+
+이 프로젝트는 Spring Boot를 기반으로 한 완전한 JWT(JSON Web Token) 인증 및 권한 관리 시스템입니다. 
+현대적인 웹 애플리케이션에서 필요한 모든 보안 기능을 제공합니다.
 
 ## 주요 기능
 
-### 인증 및 권한 관리
-- JWT 기반 인증 시스템
-- Access Token + Refresh Token 구조
-- 역할 기반 접근 제어 (RBAC)
-- 사용자 계정 상태 관리 (활성화/비활성화/잠금)
+### 🔐 인증 & 보안
+- JWT Access Token & Refresh Token 기반 인증
+- 역할 기반 접근 제어 (RBAC): ADMIN, MODERATOR, USER
+- Rate Limiting으로 브루트포스 공격 방지
+- 로그인 시도 추적 및 의심스러운 활동 탐지
+- 비밀번호 암호화 (BCrypt)
+- CSRF 보호 및 CORS 설정
 
-### 사용자 관리
-- 사용자 등록 및 프로필 관리
-- 비밀번호 변경 및 보안 관리
-- 관리자 전용 사용자 관리 기능
-- 다중 기기 로그인 관리
+### 👤 사용자 관리
+- 사용자 회원가입 및 프로필 관리
+- 비밀번호 변경 및 계정 상태 관리
+- 다중 기기 로그인 지원 (최대 5개 활성 세션)
+- 사용자 검색 및 필터링
 
-### 보안 기능
-- 패스워드 암호화 (BCrypt)
-- 토큰 만료 및 갱신 관리
-- IP 주소 기반 세션 추적
-- 비활성 사용자 자동 관리
+### 🛡️ 관리자 기능
+- 전체 사용자 관리 (생성, 수정, 삭제, 활성화/비활성화)
+- 시스템 모니터링 및 헬스체크
+- 로그인 기록 및 보안 이벤트 추적
+- 사용자별 활성 세션 관리
+
+### 📊 모니터링 & 로깅
+- Spring Boot Actuator를 통한 헬스체크
+- 상세한 로그인 시도 기록
+- 보안 이벤트 추적
+- 성능 모니터링
 
 ## 기술 스택
 
-- **Framework**: Spring Boot 3.3.5
-- **Security**: Spring Security 6.x
-- **Database**: H2 (개발용), MySQL (운영용)
-- **ORM**: JPA/Hibernate
-- **Authentication**: JWT (JSON Web Token)
+- **Backend**: Spring Boot 3.3.5, Spring Security 6, Spring Data JPA
+- **Database**: H2 (개발), MySQL (운영)
+- **Authentication**: JWT (JJWT 0.11.0)
 - **Documentation**: Swagger/OpenAPI 3
 - **Build Tool**: Gradle
+- **Container**: Docker
+- **Testing**: JUnit 5, Spring Boot Test
+
+## 시작하기
+
+### 필요 조건
+
+- Java 17 이상
+- Gradle 7.0 이상
+- Docker (선택사항)
+
+### 로컬 환경 설정
+
+1. **프로젝트 클론**
+```bash
+git clone <repository-url>
+cd jwt-auth-demo
+```
+
+2. **애플리케이션 실행**
+```bash
+# Gradle 사용
+./gradlew bootRun
+
+# 또는 JAR 파일 빌드 후 실행
+./gradlew build
+java -jar build/libs/demo-0.0.1-SNAPSHOT.jar
+```
+
+3. **애플리케이션 접속**
+- 메인 애플리케이션: http://localhost:8080
+- Swagger UI: http://localhost:8080/swagger-ui.html
+- H2 Database Console: http://localhost:8080/h2-console
+
+### Docker 실행
+
+```bash
+# Docker 이미지 빌드
+docker build -t jwt-auth-demo .
+
+# 컨테이너 실행
+docker run -p 8080:8080 jwt-auth-demo
+```
+
+## API 문서
+
+### 기본 계정
+
+개발 및 테스트를 위해 다음 계정들이 자동으로 생성됩니다:
+
+- **관리자**: `admin` / `admin123`
+- **일반 사용자**: `user` / `user123`
+
+### 주요 엔드포인트
+
+#### 🔑 인증 API (`/api/auth`)
+
+| Method | Endpoint | 설명 | 권한 |
+|--------|----------|------|------|
+| POST | `/login` | 로그인 | Public |
+| POST | `/register` | 회원가입 | Public |
+| POST | `/refresh` | 토큰 갱신 | Public |
+| POST | `/logout` | 로그아웃 | Authenticated |
+| POST | `/logout-all` | 전체 기기 로그아웃 | Authenticated |
+
+#### 👤 사용자 API (`/api/user`)
+
+| Method | Endpoint | 설명 | 권한 |
+|--------|----------|------|------|
+| GET | `/profile` | 내 프로필 조회 | User |
+| PUT | `/profile` | 프로필 수정 | User |
+| POST | `/change-password` | 비밀번호 변경 | User |
+| GET | `/active-sessions` | 활성 세션 조회 | User |
+
+#### 🛡️ 관리자 API (`/api/admin`)
+
+| Method | Endpoint | 설명 | 권한 |
+|--------|----------|------|------|
+| GET | `/users` | 사용자 목록 조회 | Admin |
+| POST | `/users` | 사용자 생성 | Admin |
+| PUT | `/users/{username}` | 사용자 수정 | Admin |
+| DELETE | `/users/{username}` | 사용자 삭제 | Admin |
+| GET | `/login-history` | 로그인 기록 조회 | Admin |
+| GET | `/security-events` | 보안 이벤트 조회 | Admin |
+
+### 인증 방법
+
+1. **로그인**
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin123"}'
+```
+
+2. **토큰 사용**
+```bash
+curl -X GET http://localhost:8080/api/user/profile \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
 
 ## 프로젝트 구조
 
 ```
 src/main/java/com/jwtauth/
-├── config/                 # 설정 클래스
+├── config/              # 설정 클래스들
 │   ├── SecurityConfig.java
 │   ├── SwaggerConfig.java
-│   ├── WebConfig.java
-│   └── JpaConfig.java
-├── controller/             # REST API 컨트롤러
+│   ├── JpaConfig.java
+│   └── ...
+├── controller/          # REST 컨트롤러들
 │   ├── AuthController.java
 │   ├── UserController.java
-│   └── AdminController.java
-├── dto/                    # 데이터 전송 객체
+│   ├── AdminController.java
+│   └── PublicController.java
+├── dto/                 # 데이터 전송 객체들
 │   ├── request/
 │   └── response/
-├── entity/                 # JPA 엔티티
+├── entity/              # JPA 엔티티들
 │   ├── User.java
-│   └── RefreshToken.java
-├── repository/             # 데이터 접근 계층
-│   ├── UserRepository.java
-│   └── RefreshTokenRepository.java
-├── security/               # 보안 관련 클래스
+│   ├── RefreshToken.java
+│   └── LoginAttempt.java
+├── repository/          # 데이터 저장소 인터페이스들
+├── security/            # 보안 관련 클래스들
 │   ├── JwtTokenUtil.java
-│   ├── JwtProperties.java
 │   ├── JwtAuthenticationFilter.java
 │   └── CustomUserDetailsService.java
-├── service/                # 비즈니스 로직
-│   ├── AuthService.java
-│   ├── UserService.java
-│   └── RefreshTokenService.java
-├── exception/              # 예외 처리
-│   └── GlobalExceptionHandler.java
-└── JwtAuthApplication.java # 메인 애플리케이션
+├── service/             # 비즈니스 로직 서비스들
+└── exception/           # 예외 처리 클래스들
 ```
 
-## 설치 및 실행
+## 설정
 
-### 요구사항
-- Java 17 이상
-- Gradle 8.x
+### 애플리케이션 프로파일
 
-### 로컬 실행
-```bash
-# 프로젝트 클론
-git clone <repository-url>
-cd jwt-auth-system
+- `development`: 개발 환경 (H2 Database)
+- `production`: 운영 환경 (MySQL)
 
-# 의존성 설치 및 빌드
-./gradlew build
+### 주요 설정 파일
 
-# 애플리케이션 실행
-./gradlew bootRun
-```
+- `application.yml`: 메인 설정
+- `application-test.yml`: 테스트 설���
 
-### 설정 파일
-`src/main/resources/application.yml`에서 다음 항목들을 환경에 맞게 수정하세요:
+### 환경 변수
 
-```yaml
-spring:
-  jwt:
-    secret: "your-secret-key-here"
-    expirationTime: 900000      # 15분
-    refreshTokenExpirationTime: 604800000  # 7일
-  
-  datasource:
-    url: jdbc:mysql://localhost:3306/jwtauth
-    username: your-username
-    password: your-password
-```
-
-## API 문서
-
-애플리케이션 실행 후 다음 URL에서 API 문서를 확인할 수 있습니다:
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- OpenAPI 스펙: `http://localhost:8080/v3/api-docs`
-
-## 주요 API 엔드포인트
-
-### 인증 API (`/api/auth`)
-- `POST /login` - 사용자 로그인
-- `POST /signup` - 회원가입
-- `POST /refresh` - 토큰 갱신
-- `POST /logout` - 로그아웃
-- `POST /logout-all` - 모든 기기에서 로그아웃
-- `POST /change-password` - 비밀번호 변경
-
-### 사용자 API (`/api/user`)
-- `GET /profile` - 내 프로필 조회
-- `PUT /profile` - 프로필 수정
-- `GET /tokens` - 내 토큰 목록
-- `GET /dashboard` - 사용자 대시보드
-
-### 관리자 API (`/api/admin`)
-- `GET /dashboard` - 관리자 대시보드
-- `GET /users` - 전체 사용자 목록
-- `GET /users/role/{role}` - 역할별 사용자 조회
-- `PUT /users/{username}` - 사용자 정보 수정
-- `DELETE /users/{username}` - 사용자 삭제
-- `GET /stats` - 시스템 통계
-
-## 기본 계정
-
-개발 및 테스트를 위한 기본 계정이 자동으로 생성됩니다:
-
-| 사용자명 | 비밀번호 | 역할 |
-|---------|---------|------|
-| admin   | admin123| ADMIN|
-| user    | user123 | USER |
-
-## 사용법 예시
-
-### 로그인 및 토큰 받기
-```bash
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "user",
-    "password": "user123"
-  }'
-```
-
-### 인증이 필요한 API 호출
-```bash
-curl -X GET http://localhost:8080/api/user/profile \
-  -H "Authorization: Bearer your-jwt-token"
-```
-
-### 토큰 갱신
-```bash
-curl -X POST http://localhost:8080/api/auth/refresh \
-  -H "Authorization: Bearer your-refresh-token"
-```
+| 변수명 | 설명 | 기본값 |
+|--------|------|--------|
+| `JWT_SECRET` | JWT 서명 키 | (자동 생성) |
+| `DB_URL` | 데이터베이스 URL | jdbc:h2:mem:jwt |
+| `DB_USERNAME` | 데이터베이스 사용자명 | sa |
+| `DB_PASSWORD` | 데이터베이스 비밀번호 | (없음) |
 
 ## 보안 고려사항
 
-### JWT 토큰 보안
-- 강력한 시크릿 키 사용 (최소 512비트)
-- 적절한 토큰 만료 시간 설정
-- HTTPS 사용 권장
-- 토큰을 로컬 스토리지 대신 HTTP-Only 쿠키에 저장 권장
+### JWT 토큰 관리
+- Access Token: 15분 만료
+- Refresh Token: 7일 만료
+- 사용자당 최대 5개 활성 세션
+- 토큰 무효화 및 블랙리스트 관리
 
-### 데이터베이스 보안
-- 비밀번호 BCrypt 해싱
-- 민감한 정보 암호화
-- 정기적인 백업 및 복구 계획
+### Rate Limiting
+- IP당 분당 최대 10회 로그인 시도
+- 15분 임시 잠금 정책
+- 의심스러운 IP 자동 탐지
 
-## 모니터링 및 로깅
-
-### 로그 레벨 설정
-```yaml
-logging:
-  level:
-    com.jwtauth: INFO
-    org.springframework.security: DEBUG
-```
-
-### 주요 로그 항목
-- 로그인/로그아웃 이벤트
-- 토큰 갱신 이벤트
-- 보안 관련 이벤트
-- 에러 및 예외 상황
+### 데이터 보호
+- 비밀번호 BCrypt 암호화
+- 민감한 정보 로그 제외
+- SQL Injection 방지
+- XSS 보호
 
 ## 테스트
 
 ```bash
-# 단위 테스트 실행
+# 전체 테스트 실행
 ./gradlew test
 
-# 통합 테스트 실행
+# 통합 테스트만 실행
 ./gradlew integrationTest
-
-# 테스트 리포트 확인
-open build/reports/tests/test/index.html
 ```
 
 ## 배포
 
-### 운영 환경 설정
-1. `application-prod.yml` 파일 생성
-2. 데이터베이스 설정 변경
-3. JWT 시크릿 키 변경
-4. HTTPS 설정
-5. 로깅 레벨 조정
-
 ### Docker 배포
+
 ```dockerfile
-FROM openjdk:17-jre-slim
-COPY build/libs/demo-0.0.1-SNAPSHOT.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+# 프로덕션 환경에서 MySQL 사용
+docker run -d \
+  --name jwt-auth-app \
+  -p 8080:8080 \
+  -e SPRING_PROFILES_ACTIVE=production \
+  -e DB_URL=jdbc:mysql://mysql:3306/jwtauth \
+  -e DB_USERNAME=jwtauth \
+  -e DB_PASSWORD=your_password \
+  jwt-auth-demo
 ```
 
-## 문제 해결
+### JAR 배포
 
-### 자주 발생하는 문제
-1. **토큰 만료**: 토큰 만료 시간 확인 및 리프레시 토큰 사용
-2. **권한 오류**: 사용자 역할 및 권한 설정 확인
-3. **데이터베이스 연결**: 데이터베이스 URL 및 인증 정보 확인
+```bash
+java -jar demo-0.0.1-SNAPSHOT.jar \
+  --spring.profiles.active=production \
+  --spring.datasource.url=jdbc:mysql://localhost:3306/jwtauth
+```
 
-### 디버깅 팁
-- 로그 레벨을 DEBUG로 설정하여 상세 정보 확인
-- H2 콘솔을 통한 데이터베이스 상태 확인
-- Swagger UI를 통한 API 테스트
+## 모니터링
 
-## 기여 방법
+### Health Check
+- URL: `/actuator/health`
+- 데이터베이스 연결 상태, 디스크 사용량 등 확인
 
-1. 이슈 등록
-2. 브랜치 생성
-3. 코드 작성 및 테스트
-4. Pull Request 제출
+### 메트릭스
+- URL: `/actuator/info`
+- 애플리케이션 정보 및 빌드 정보
 
 ## 라이선스
 
-MIT License
+이 프로젝트는 MIT 라이선스 하에 배포됩니다.
 
-## 문의
+## 기여하기
 
-프로젝트 관련 문의사항은 이슈를 통해 남겨주세요.
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 연락처
+
+- 프로젝트 링크: [GitHub Repository]
+- 이슈 신고: [GitHub Issues]
+- 문서: [Swagger UI](http://localhost:8080/swagger-ui.html)
+
+---
+
+> **주의**: 이 프로젝트는 학습 및 데모 목적으로 작성되었습니다. 

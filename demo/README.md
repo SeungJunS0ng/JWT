@@ -183,7 +183,7 @@ src/main/java/com/jwtauth/
 ### 주요 설정 파일
 
 - `application.yml`: 메인 설정
-- `application-test.yml`: 테스트 설���
+- `application-test.yml`: 테스트 설정
 
 ### 환경 변수
 
@@ -277,4 +277,4 @@ java -jar demo-0.0.1-SNAPSHOT.jar \
 
 ---
 
-> **주의**: 이 프로젝트는 학습 및 데모 목적으로 작성되었습니다. 
+> **주의**: 이 프로젝트는 학습 및 데모 목적으로 작성되었습니다.

@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # MySQL 데이터베이스
+  mysql:
+    image: mysql:8.0
+    container_name: jwt-auth-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: jwtauth
+      MYSQL_USER: jwtauth
+      MYSQL_PASSWORD: jwtauth123
+      MYSQL_ROOT_PASSWORD: rootpassword123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - jwt-auth-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # JWT Auth 애플리케이션
+  jwt-auth-app:
+    build: .
+    container_name: jwt-auth-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/jwtauth
+      SPRING_DATASOURCE_USERNAME: jwtauth
+      SPRING_DATASOURCE_PASSWORD: jwtauth123
+      JWT_SECRET: mySecretKeyForJWTWhichShouldBeVeryLongAndSecure123456789
+    ports:
+      - "8080:8080"
+    networks:
+      - jwt-auth-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Redis (세션 관리 및 캐싱 - 선택사항)
+  redis:
+    image: redis:7-alpine
+    container_name: jwt-auth-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - jwt-auth-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  jwt-auth-network:
+    driver: bridge

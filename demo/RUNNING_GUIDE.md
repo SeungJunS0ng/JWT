@@ -1,78 +1,178 @@
-# JWT 인증 시스템 실행 완료 - 접근 가이드
+# JWT Authentication System - 운영 가이드
 
-## 🎉 애플리케이션 성공적으로 실행됨!
+## 빠른 시작
 
-### 📋 접근 가능한 URL들:
+### 1. 로컬 개발 환경 (H2 Database)
+```bash
+./gradlew bootRun
+```
+- 애플리케이션: http://localhost:8080
+- Swagger UI: http://localhost:8080/swagger-ui.html
+- H2 Console: http://localhost:8080/h2-console
 
-#### 1. 메인 애플리케이션
-- **URL**: http://localhost:8080
-- **상태**: ✅ 실행 중
-
-#### 2. Swagger API 문서
-- **URL**: http://localhost:8080/swagger-ui.html
-- **기능**: 모든 API 엔드포인트 테스트 가능
-- **상태**: ✅ 완전 문서화됨
-
-#### 3. H2 데이터베이스 콘솔
-- **URL**: http://localhost:8080/h2-console
-- **JDBC URL**: jdbc:h2:mem:jwt
-- **Username**: sa
-- **Password**: (비어있음)
-
-#### 4. 헬스체크 엔드포인트
-- **URL**: http://localhost:8080/actuator/health
-- **기능**: 애플리케이션 상태 확인
-
-### 🔐 기본 제공 계정:
-
-#### 관리자 계정
-- **사용자명**: admin
-- **비밀번호**: admin123
-- **권한**: ADMIN (모든 기능 접근 가능)
-
-#### 일반 사용자 계정
-- **사용자명**: user
-- **비밀번호**: user123
-- **권한**: USER (사용자 기능만 접근)
-
-### 🚀 API 테스트 방법:
-
-#### 1. 로그인 (Swagger UI에서 테스트)
-```json
-POST /api/auth/login
-{
-  "username": "admin",
-  "password": "admin123"
-}
+### 2. Docker Compose로 전체 시스템 실행 (MySQL + Redis)
+```bash
+docker-compose up -d
 ```
 
-#### 2. 응답에서 받은 JWT 토큰으로 인증이 필요한 API 호출
-- Authorization 헤더에 `Bearer {토큰}` 형식으로 추가
+### 3. Docker만으로 실행
+```bash
+# 이미지 빌드
+docker build -t jwt-auth-demo .
 
-### 📊 주요 API 엔드포인트:
+# 컨테이너 실행
+docker run -p 8080:8080 jwt-auth-demo
+```
 
-#### 인증 API (/api/auth)
-- POST /login - 로그인
-- POST /signup - 회원가입
-- POST /refresh - 토큰 갱신
-- POST /logout - 로그아웃
+## API 테스트 예시
 
-#### 사용자 API (/api/user)
-- GET /profile - 내 프로필 조회
-- GET /tokens - 내 토큰 목록
-- GET /dashboard - 사용자 대시보드
+### 1. 관리자 로그인
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin123"}'
+```
 
-#### 관리자 API (/api/admin)
-- GET /dashboard - 관리자 대시보드
-- GET /users - 사용자 목록
-- GET /stats - 시스템 통계
+### 2. 사용자 회원가입
+```bash
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "password": "password123",
+    "confirmPassword": "password123",
+    "email": "test@example.com",
+    "role": "USER"
+  }'
+```
 
-## ✅ 프로젝트 완성 상태: 100%
+### 3. 인증이 필요한 API 호출
+```bash
+curl -X GET http://localhost:8080/api/user/profile \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
 
-모든 기능이 정상적으로 작동하며, 실제 운영 환경에서 사용할 수 있는 수준의
-완전한 JWT 인증 시스템이 구축되었습니다.
+### 4. 토큰 갱신
+```bash
+curl -X POST http://localhost:8080/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken": "YOUR_REFRESH_TOKEN"}'
+```
 
-### 다음 단계:
-1. 브라우저에서 http://localhost:8080/swagger-ui.html 접속
-2. API 문서를 통해 모든 기능 테스트
-3. 필요시 추가 기능 개발 또는 커스터마이징
+## 주요 설정 값
+
+### JWT 설정
+- Access Token 만료: 15분
+- Refresh Token 만료: 7일
+- 최대 활성 세션: 5개
+
+### Rate Limiting
+- 분당 최대 로그인 시도: 10회
+- 임시 잠금 시간: 15분
+
+### 보안 설정
+- 비밀번호 암호화: BCrypt
+- CORS: 개발 환경에서만 허용
+- CSRF: REST API에서 비활성화
+
+## 환경별 설정
+
+### 개발 환경 (development)
+```yaml
+spring:
+  profiles:
+    active: development
+  datasource:
+    url: jdbc:h2:mem:jwt
+    driver-class-name: org.h2.Driver
+```
+
+### 운영 환경 (production)
+```yaml
+spring:
+  profiles:
+    active: production
+  datasource:
+    url: jdbc:mysql://localhost:3306/jwtauth
+    username: jwtauth
+    password: ${DB_PASSWORD}
+```
+
+## 모니터링
+
+### Health Check
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+### 애플리케이션 정보
+```bash
+curl http://localhost:8080/actuator/info
+```
+
+## 문제 해결
+
+### 1. 포트 충돌
+```bash
+# 8080 포트를 사용하는 프로세스 확인
+netstat -ano | findstr :8080
+# 또는
+lsof -i :8080
+
+# 다른 포트로 실행
+java -jar app.jar --server.port=8081
+```
+
+### 2. 메모리 부족
+```bash
+# JVM 힙 메모리 조정
+java -Xmx1g -Xms512m -jar app.jar
+```
+
+### 3. 데이터베이스 연결 오류
+- MySQL 서비스 상태 확인
+- 연결 정보 (URL, 사용자명, 비밀번호) 확인
+- 네트워크 연결 상태 확인
+
+## 배포 체크리스트
+
+### 운영 환경 배포 전
+- [ ] 데이터베이스 연결 정보 확인
+- [ ] JWT 시크릿 키 설정 (환경변수)
+- [ ] CORS 설정 확인
+- [ ] 로그 레벨 설정 (INFO 이상)
+- [ ] SSL/HTTPS 설정
+- [ ] 방화벽 규칙 확인
+- [ ] 백업 정책 수립
+
+### 성능 최적화
+- [ ] JVM 튜닝 옵션 설정
+- [ ] 데이터베이스 인덱스 최적화
+- [ ] 커넥션 풀 설정
+- [ ] 캐시 설정 (Redis)
+
+## 보안 권장사항
+
+1. **JWT 시크릿 키**: 충분히 긴 랜덤 문자열 사용
+2. **HTTPS**: 운영 환경에서 반드시 사용
+3. **비밀번호 정책**: 최소 8자, 대소문자+숫자+특수문자
+4. **로그 관리**: 민감한 정보 로그 제외
+5. **정기 업데이트**: 의존성 라이브러리 보안 패치
+
+## 성능 모니터링
+
+### 주요 메트릭
+- 응답 시간
+- 처리량 (TPS)
+- 메모리 사용률
+- CPU 사용률
+- 데이터베이스 연결 수
+
+### 로그 분석
+```bash
+# 로그인 실패 분석
+grep "BadCredentialsException" logs/jwt-auth.log
+
+# 응답 시간 분석
+grep "took" logs/jwt-auth.log | awk '{print $NF}' | sort -n
+```

@@ -1,5 +1,6 @@
 package com.jwtauth.service;
 
+import com.jwtauth.config.RateLimitingService;
 import com.jwtauth.dto.request.LoginRequest;
 import com.jwtauth.dto.request.PasswordChangeRequest;
 import com.jwtauth.dto.request.UserRegistrationRequest;
@@ -31,44 +32,74 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenUtil jwtTokenUtil;
     private final RefreshTokenService refreshTokenService;
+    private final RateLimitingService rateLimitingService;
+    private final LoginAttemptService loginAttemptService;
 
     public TokenResponse login(LoginRequest loginRequest, HttpServletRequest request) {
-        User user = userRepository.findByUsernameOrEmail(loginRequest.getUsername(), loginRequest.getUsername())
-                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + loginRequest.getUsername()));
+        String clientIp = rateLimitingService.getClientIpAddress(request);
+        String userAgent = request.getHeader("User-Agent");
 
-        validateUserAccount(user);
-
-        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
-            throw new BadCredentialsException("비밀번호가 일치하지 않습니다.");
+        // 의심스러운 IP 검사
+        if (loginAttemptService.isIpSuspicious(clientIp)) {
+            log.warn("의심스러운 IP에서 로그인 시도: {}", clientIp);
         }
 
-        // 로그인 시간 업데이트
-        user.updateLastLoginTime();
-        userRepository.save(user);
-
-        // 기존 활성 토큰들 제한 확인 (최대 5개)
-        long activeTokenCount = refreshTokenRepository.countActiveTokensByUsername(user.getUsername());
-        if (activeTokenCount >= 5) {
-            refreshTokenService.revokeOldestToken(user.getUsername());
+        // Rate Limiting 검사
+        if (!rateLimitingService.isAllowed(clientIp)) {
+            loginAttemptService.recordFailedLogin(loginRequest.getUsername(), clientIp, userAgent, "Rate limit exceeded");
+            throw new BadCredentialsException("너무 많은 로그인 시도로 인해 계정이 일시적으로 잠겼습니다. 15분 후 다시 시도해주세요.");
         }
 
-        String accessToken = jwtTokenUtil.generateAccessToken(user.getUsername(), user.getRole().getAuthority());
-        String refreshToken = jwtTokenUtil.generateRefreshToken(user.getUsername());
+        try {
+            User user = userRepository.findByUsernameOrEmail(loginRequest.getUsername(), loginRequest.getUsername())
+                    .orElseThrow(() -> {
+                        loginAttemptService.recordFailedLogin(loginRequest.getUsername(), clientIp, userAgent, "User not found");
+                        return new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + loginRequest.getUsername());
+                    });
 
-        // RefreshToken 저장
-        refreshTokenService.saveRefreshToken(refreshToken, user.getUsername(), request);
+            validateUserAccount(user);
 
-        log.info("사용자 '{}' 로그인 성공 (IP: {})", user.getUsername(), getClientIpAddress(request));
+            if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+                loginAttemptService.recordFailedLogin(user.getUsername(), clientIp, userAgent, "Invalid password");
+                rateLimitingService.recordFailedAttempt(clientIp);
+                throw new BadCredentialsException("비밀번호가 일치하지 않습니다.");
+            }
 
-        return TokenResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .expiresIn(jwtTokenUtil.getExpirationTime())
-                .username(user.getUsername())
-                .role(user.getRole().name())
-                .issuedAt(LocalDateTime.now())
-                .expiresAt(LocalDateTime.now().plusSeconds(jwtTokenUtil.getExpirationTime() / 1000))
-                .build();
+            // 로그인 성공 처리
+            rateLimitingService.recordSuccessfulAttempt(clientIp);
+            loginAttemptService.recordSuccessfulLogin(user.getUsername(), clientIp, userAgent);
+
+            // 로그인 시간 업데이트
+            user.updateLastLoginTime();
+            userRepository.save(user);
+
+            // 기존 활성 토큰들 제한 확인 (최대 5개)
+            long activeTokenCount = refreshTokenRepository.countActiveTokensByUsername(user.getUsername());
+            if (activeTokenCount >= 5) {
+                refreshTokenService.revokeOldestToken(user.getUsername());
+            }
+
+            String accessToken = jwtTokenUtil.generateAccessToken(user.getUsername(), user.getRole().getAuthority());
+            String refreshToken = jwtTokenUtil.generateRefreshToken(user.getUsername());
+
+            // RefreshToken 저장
+            refreshTokenService.saveRefreshToken(refreshToken, user.getUsername(), request);
+
+            log.info("사용자 '{}' 로그인 성공 (IP: {})", user.getUsername(), getClientIpAddress(request));
+
+            return TokenResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .expiresIn(jwtTokenUtil.getExpirationTime())
+                    .username(user.getUsername())
+                    .role(user.getRole().name())
+                    .issuedAt(LocalDateTime.now())
+                    .expiresAt(LocalDateTime.now().plusSeconds(jwtTokenUtil.getExpirationTime() / 1000))
+                    .build();
+        } catch (BadCredentialsException | UsernameNotFoundException e) {
+            rateLimitingService.recordFailedAttempt(clientIp);
+            throw e;
+        }
     }
 
     public TokenResponse refreshToken(String refreshToken, HttpServletRequest request) {

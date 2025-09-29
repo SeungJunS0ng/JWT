@@ -3,7 +3,9 @@ package com.jwtauth.controller;
 import com.jwtauth.dto.request.UserSearchRequest;
 import com.jwtauth.dto.request.UserUpdateRequest;
 import com.jwtauth.dto.response.*;
+import com.jwtauth.entity.LoginAttempt;
 import com.jwtauth.entity.User;
+import com.jwtauth.service.LoginAttemptService;
 import com.jwtauth.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,11 +32,12 @@ import java.util.Map;
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "Admin Management", description = "관리자 전용 API - 사용자 관리, 시스템 관리")
+@Tag(name = "Admin Management", description = "관리자 전용 API - 사용자 관리, 시스템 관리, 보안 모니터링")
 @SecurityRequirement(name = "Bearer Authentication")
 public class AdminController {
 
     private final UserService userService;
+    private final LoginAttemptService loginAttemptService;
 
     @GetMapping("/dashboard")
     @Operation(
@@ -307,5 +310,43 @@ public class AdminController {
 
         log.info("비활성 사용자 비활성화 실행 by 관리자: {} ({}일 이상, {} 명 처리)", username, days, disabledCount);
         return ResponseEntity.ok(ApiResponse.success("비활성 사용자 비활성화 완료", result));
+    }
+
+    @GetMapping("/security/login-attempts")
+    @Operation(
+            summary = "로그인 시도 기록 조회",
+            description = "전체 시스템의 로그인 시도 기록을 조회합니다."
+    )
+    public ResponseEntity<ApiResponse<List<LoginAttempt>>> getLoginAttempts(
+            @Parameter(description = "조회할 시간 범위 (시간 단위)")
+            @RequestParam(defaultValue = "24") int hours) {
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+
+        List<LoginAttempt> suspiciousActivities = loginAttemptService.getSuspiciousActivities(hours);
+
+        log.info("로그인 시도 기록 조회 by 관리자: {} ({}시간)", username, hours);
+        return ResponseEntity.ok(ApiResponse.success("로그인 시도 기록", suspiciousActivities));
+    }
+
+    @GetMapping("/security/user-history/{targetUsername}")
+    @Operation(
+            summary = "특정 사용자 로그인 히스토리",
+            description = "특정 사용자의 로그인 히스토리를 조회합니다."
+    )
+    public ResponseEntity<ApiResponse<List<LoginAttempt>>> getUserLoginHistory(
+            @Parameter(description = "조회할 사용자명", required = true)
+            @PathVariable String targetUsername,
+            @Parameter(description = "조회할 기록 수")
+            @RequestParam(defaultValue = "50") int limit) {
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String adminUsername = authentication.getName();
+
+        List<LoginAttempt> history = loginAttemptService.getUserLoginHistory(targetUsername, limit);
+
+        log.info("사용자 '{}' 로그인 히스토리 조회 by 관리자: {}", targetUsername, adminUsername);
+        return ResponseEntity.ok(ApiResponse.success("사용자 로그인 히스토리", history));
     }
 }

@@ -183,7 +183,7 @@ src/main/java/com/jwtauth/
 ### 주요 설정 파일
 
 - `application.yml`: 메인 설정
-- `application-test.yml`: 테스트 설���
+- `application-test.yml`: 테스트 설정
 
 ### 환경 변수
 
